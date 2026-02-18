@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Security Framework Overlaps — CRA · NIST CSF 2.0 · MS SDL</title>
+<style>
+:root {
+  --bg: #0f1117; --surface: #1a1d27; --surface2: #242836; --border: #2e3348;
+  --text: #e4e6f0; --text2: #9499b3; --text3: #5d6280;
+  --cra: #4A90D9; --nist: #50C878; --sdl: #F5A623;
+  --cra-bg: rgba(74,144,217,0.12); --nist-bg: rgba(80,200,120,0.12); --sdl-bg: rgba(245,166,35,0.12);
+  --all3: #c084fc; --radius: 10px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background:var(--bg); color:var(--text); line-height:1.6; }
+.container { max-width:1280px; margin:0 auto; padding:24px; }
+h1 { font-size:1.8rem; font-weight:700; margin-bottom:4px; }
+.subtitle { color:var(--text2); font-size:0.95rem; margin-bottom:24px; }
+
+/* Stats */
+.stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:28px; }
+.stat { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:16px; text-align:center; }
+.stat .num { font-size:2rem; font-weight:700; }
+.stat .label { font-size:0.8rem; color:var(--text2); text-transform:uppercase; letter-spacing:0.5px; }
+
+/* Tabs */
+.tabs { display:flex; gap:4px; margin-bottom:24px; background:var(--surface); border-radius:var(--radius); padding:4px; width:fit-content; }
+.tab { padding:10px 24px; border-radius:8px; cursor:pointer; font-size:0.9rem; font-weight:500; color:var(--text2); transition:all .2s; border:none; background:none; }
+.tab:hover { color:var(--text); }
+.tab.active { background:var(--surface2); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.3); }
+.view { display:none; } .view.active { display:block; }
+
+/* Legend */
+.legend { display:flex; gap:20px; flex-wrap:wrap; margin-bottom:20px; font-size:.85rem; }
+.legend span { display:flex; align-items:center; gap:6px; }
+.legend .dot { width:12px; height:12px; border-radius:50%; display:inline-block; }
+
+/* Venn */
+.venn-wrap { display:flex; flex-direction:column; align-items:center; }
+.venn-svg { max-width:700px; width:100%; }
+.venn-svg text { font-family:inherit; pointer-events:none; }
+.venn-svg .region { cursor:pointer; transition:opacity .2s; }
+.venn-svg .region:hover { opacity:.85; }
+#venn-detail { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; margin-top:20px; max-width:700px; width:100%; min-height:80px; }
+#venn-detail h3 { margin-bottom:8px; font-size:1rem; }
+#venn-detail ul { padding-left:20px; font-size:.9rem; color:var(--text2); }
+
+/* Matrix */
+.matrix-wrap { overflow-x:auto; }
+.matrix { width:100%; border-collapse:collapse; font-size:.85rem; }
+.matrix th, .matrix td { padding:10px 14px; border:1px solid var(--border); text-align:center; }
+.matrix th { background:var(--surface); position:sticky; top:0; z-index:1; }
+.matrix th.row-head { text-align:left; min-width:220px; }
+.matrix td.row-head { text-align:left; background:var(--surface); font-weight:500; }
+.matrix td.cell { transition:transform .15s; cursor:default; }
+.matrix td.cell:hover { transform:scale(1.15); }
+.c3 { background:rgba(192,132,252,.35); color:#e2d0ff; font-weight:600; }
+.c2 { background:rgba(100,180,255,.22); color:#b0d4ff; }
+.c1 { background:rgba(255,255,255,.07); color:var(--text2); }
+.c0 { background:transparent; color:var(--text3); }
+
+/* Table */
+.detail-table-wrap { overflow-x:auto; }
+.detail-table { width:100%; border-collapse:collapse; font-size:.85rem; }
+.detail-table th, .detail-table td { padding:10px 14px; border:1px solid var(--border); }
+.detail-table th { background:var(--surface); position:sticky; top:0; text-align:left; }
+.detail-table tr:hover { background:var(--surface); }
+.detail-table td:nth-child(n+3) { text-align:center; font-size:1.1rem; }
+.check { color:#50C878; } .cross { color:var(--text3); }
+.cat-label { font-size:.7rem; padding:2px 8px; border-radius:4px; font-weight:600; display:inline-block; margin-right:6px; }
+
+/* Filter bar */
+.filters { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px; align-items:center; }
+.filters label { font-size:.85rem; color:var(--text2); }
+.filters select, .filters input { background:var(--surface2); color:var(--text); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:.85rem; }
+
+/* Print */
+@media print {
+  body { background:#fff; color:#111; }
+  .tabs, .filters { display:none; }
+  .view { display:block !important; page-break-inside:avoid; margin-bottom:32px; }
+  .stat { border:1px solid #ccc; }
+  .matrix td, .matrix th, .detail-table td, .detail-table th { border-color:#ccc; }
+  .c3 { background:#e0d0ff !important; } .c2 { background:#d0e8ff !important; } .c1 { background:#f0f0f0 !important; }
+}
+@media(max-width:600px) {
+  .tabs { flex-wrap:wrap; width:100%; } .tab { flex:1; text-align:center; padding:8px 10px; }
+  h1 { font-size:1.3rem; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>🔒 Security Framework Overlap Analysis</h1>
+<p class="subtitle">EU Cyber Resilience Act · NIST CSF 2.0 · Microsoft SDL — Interactive cross-mapping for product security engineers</p>
+
+<div class="stats" id="stats"></div>
+
+<div class="tabs">
+  <button class="tab active" data-view="venn">Venn Diagram</button>
+  <button class="tab" data-view="matrix">Matrix / Heatmap</button>
+  <button class="tab" data-view="table">Detailed Table</button>
+</div>
+
+<div class="legend">
+  <span><span class="dot" style="background:var(--cra)"></span> EU CRA</span>
+  <span><span class="dot" style="background:var(--nist)"></span> NIST CSF 2.0</span>
+  <span><span class="dot" style="background:var(--sdl)"></span> Microsoft SDL</span>
+  <span><span class="dot" style="background:var(--all3)"></span> All Three</span>
+</div>
+
+<div class="view active" id="view-venn"></div>
+<div class="view" id="view-matrix"></div>
+<div class="view" id="view-table"></div>
+</div>
+
+<script>
+// ── DATA ──
+const REQ = [
+  // category, requirement, cra, nist, sdl, notes
+  ["Secure Design", "Secure by design/default principles", 1,1,1, "CRA Art.10; CSF PR.DS/PR.IP; SDL Design phase"],
+  ["Secure Design", "Threat modeling", 1,1,1, "CRA risk assessment; CSF ID.RA; SDL core practice"],
+  ["Secure Design", "Attack surface reduction", 1,1,1, "CRA minimization; CSF PR.AC; SDL design requirement"],
+  ["Secure Design", "Defense in depth", 0,1,1, "CSF PR layers; SDL architecture principle"],
+  ["Secure Design", "Cryptographic standards", 1,1,1, "CRA data protection; CSF PR.DS; SDL crypto requirements"],
+
+  ["Vulnerability Mgmt", "Vulnerability handling process", 1,1,1, "CRA Art.11; CSF ID.RA/RS.MI; SDL Response phase"],
+  ["Vulnerability Mgmt", "Coordinated vulnerability disclosure", 1,1,1, "CRA Art.11(7); CSF RS.CO; SDL response plan"],
+  ["Vulnerability Mgmt", "Static analysis (SAST)", 0,0,1, "SDL Verification phase core practice"],
+  ["Vulnerability Mgmt", "Dynamic analysis / fuzz testing", 0,0,1, "SDL Verification phase core practice"],
+  ["Vulnerability Mgmt", "Penetration testing", 0,1,1, "CSF ID.RA; SDL Verification"],
+  ["Vulnerability Mgmt", "No known exploitable vulns at release", 1,0,1, "CRA Art.10(4); SDL release gates"],
+
+  ["SBOM & Supply Chain", "Software Bill of Materials (SBOM)", 1,1,1, "CRA Art.10(9); CSF ID.AM; SDL release artifact"],
+  ["SBOM & Supply Chain", "Supply chain risk management", 1,1,1, "CRA Art.10(13); CSF GV.SC/ID.SC; SDL 3rd-party component mgmt"],
+  ["SBOM & Supply Chain", "Third-party component analysis", 1,1,1, "CRA dependency tracking; CSF ID.AM; SDL open-source policy"],
+  ["SBOM & Supply Chain", "Supplier security requirements", 1,1,0, "CRA supply chain; CSF GV.SC"],
+
+  ["Patch & Update", "Security update mechanism", 1,1,1, "CRA Art.10(12); CSF PR.IP; SDL servicing"],
+  ["Patch & Update", "Timely patch delivery", 1,1,1, "CRA Art.11; CSF RS.MI; SDL response SLA"],
+  ["Patch & Update", "Automatic update capability", 1,0,0, "CRA Art.10(12) preferred"],
+  ["Patch & Update", "Support period definition", 1,0,0, "CRA Art.10(12) — min 5 years"],
+
+  ["Risk & Governance", "Risk assessment process", 1,1,1, "CRA Art.10(2); CSF ID.RA; SDL security requirements"],
+  ["Risk & Governance", "Cybersecurity governance", 0,1,0, "CSF GV.OC/GV.RM — organizational context"],
+  ["Risk & Governance", "Roles & responsibilities", 0,1,1, "CSF GV.RR; SDL org practices"],
+  ["Risk & Governance", "Regulatory compliance mapping", 1,1,0, "CRA conformity; CSF GV.OC"],
+  ["Risk & Governance", "Risk tolerance definition", 0,1,0, "CSF GV.RM"],
+
+  ["Incident Response", "Incident reporting to authorities", 1,1,0, "CRA Art.14 — 24h ENISA; CSF RS.CO"],
+  ["Incident Response", "Incident response plan", 1,1,1, "CRA Art.14; CSF RS.RP; SDL Response phase"],
+  ["Incident Response", "Post-incident analysis", 0,1,1, "CSF RS.AN; SDL post-mortem"],
+  ["Incident Response", "Recovery planning", 0,1,0, "CSF RC.RP"],
+  ["Incident Response", "Crisis communication", 1,1,0, "CRA user notification; CSF RC.CO"],
+
+  ["Dev Lifecycle", "Secure development lifecycle", 1,1,1, "CRA Art.10(1); CSF PR.IP; SDL core framework"],
+  ["Dev Lifecycle", "Security training", 0,1,1, "CSF PR.AT; SDL Training phase"],
+  ["Dev Lifecycle", "Security requirements definition", 1,1,1, "CRA essential requirements; CSF PR; SDL Requirements phase"],
+  ["Dev Lifecycle", "Code review practices", 0,0,1, "SDL Implementation phase"],
+  ["Dev Lifecycle", "Secure coding standards", 1,0,1, "CRA secure dev; SDL banned APIs / safe functions"],
+  ["Dev Lifecycle", "Release/deployment security", 1,0,1, "CRA conformity assessment; SDL Release phase gates"],
+
+  ["Data Protection", "Data confidentiality protection", 1,1,1, "CRA Art.10(3)(d); CSF PR.DS; SDL data classification"],
+  ["Data Protection", "Data integrity protection", 1,1,1, "CRA Art.10(3)(d); CSF PR.DS; SDL implementation"],
+  ["Data Protection", "Data minimization", 1,1,0, "CRA Art.10(3)(e); CSF PR.DS"],
+  ["Data Protection", "Encryption at rest and in transit", 1,1,1, "CRA Art.10; CSF PR.DS; SDL crypto requirements"],
+
+  ["Access Control", "Authentication mechanisms", 1,1,1, "CRA Art.10(3)(f); CSF PR.AC; SDL design req"],
+  ["Access Control", "Authorization / least privilege", 1,1,1, "CRA Art.10; CSF PR.AC; SDL principle"],
+  ["Access Control", "Identity management", 0,1,1, "CSF PR.AC; SDL identity practices"],
+  ["Access Control", "Default credential prohibition", 1,0,1, "CRA Art.10(3)(f); SDL release checks"],
+
+  ["Monitoring", "Logging & audit trails", 1,1,1, "CRA Art.10(3)(g); CSF DE.AE; SDL operational security"],
+  ["Monitoring", "Security event monitoring", 1,1,1, "CRA Art.10; CSF DE.CM; SDL operational"],
+  ["Monitoring", "Anomaly detection", 0,1,0, "CSF DE.AE"],
+  ["Monitoring", "Continuous monitoring program", 0,1,0, "CSF DE.CM, ID.IM"],
+
+  ["Documentation", "Technical documentation", 1,1,1, "CRA Art.10(8); CSF ID.AM; SDL release artifacts"],
+  ["Documentation", "User security guidance", 1,0,1, "CRA Art.10(10); SDL customer guidance"],
+  ["Documentation", "Conformity assessment / self-declaration", 1,0,0, "CRA Art.24-28"],
+
+  ["Resilience", "Availability / resilience requirements", 1,1,0, "CRA Art.10(3)(c); CSF PR.DS"],
+  ["Resilience", "Secure default configuration", 1,1,1, "CRA Art.10(3)(a); CSF PR.IP; SDL secure defaults"],
+  ["Resilience", "Backup & recovery", 0,1,0, "CSF PR.IP, RC.RP"],
+];
+
+const CATEGORIES = [...new Set(REQ.map(r=>r[0]))];
+const catColors = {
+  "Secure Design":"#6366f1","Vulnerability Mgmt":"#ef4444","SBOM & Supply Chain":"#f59e0b",
+  "Patch & Update":"#10b981","Risk & Governance":"#8b5cf6","Incident Response":"#ec4899",
+  "Dev Lifecycle":"#06b6d4","Data Protection":"#3b82f6","Access Control":"#f97316",
+  "Monitoring":"#14b8a6","Documentation":"#a78bfa","Resilience":"#22d3ee"
+};
+
+// ── STATS ──
+const total = REQ.length;
+const all3 = REQ.filter(r=>r[2]&&r[3]&&r[4]).length;
+const craOnly = REQ.filter(r=>r[2]&&!r[3]&&!r[4]).length;
+const nistOnly = REQ.filter(r=>!r[2]&&r[3]&&!r[4]).length;
+const sdlOnly = REQ.filter(r=>!r[2]&&!r[3]&&r[4]).length;
+const craN = REQ.filter(r=>r[2]).length, nistN = REQ.filter(r=>r[3]).length, sdlN = REQ.filter(r=>r[4]).length;
+const any2plus = REQ.filter(r=>(r[2]+r[3]+r[4])>=2).length;
+
+document.getElementById('stats').innerHTML = `
+  <div class="stat"><div class="num">${total}</div><div class="label">Total Requirements</div></div>
+  <div class="stat"><div class="num" style="color:var(--all3)">${all3}</div><div class="label">Covered by All 3</div></div>
+  <div class="stat"><div class="num">${Math.round(all3/total*100)}%</div><div class="label">Triple Overlap</div></div>
+  <div class="stat"><div class="num">${Math.round(any2plus/total*100)}%</div><div class="label">≥2 Frameworks</div></div>
+  <div class="stat"><div class="num" style="color:var(--cra)">${craN}</div><div class="label">EU CRA</div></div>
+  <div class="stat"><div class="num" style="color:var(--nist)">${nistN}</div><div class="label">NIST CSF</div></div>
+  <div class="stat"><div class="num" style="color:var(--sdl)">${sdlN}</div><div class="label">MS SDL</div></div>
+`;
+
+// ── TABS ──
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');
+  document.getElementById('view-'+t.dataset.view).classList.add('active');
+}));
+
+// ── VENN ──
+const vennRegions = {
+  cra_only: {items: REQ.filter(r=>r[2]&&!r[3]&&!r[4]), label:"CRA Only", color:"var(--cra)"},
+  nist_only: {items: REQ.filter(r=>!r[2]&&r[3]&&!r[4]), label:"NIST CSF Only", color:"var(--nist)"},
+  sdl_only: {items: REQ.filter(r=>!r[2]&&!r[3]&&r[4]), label:"MS SDL Only", color:"var(--sdl)"},
+  cra_nist: {items: REQ.filter(r=>r[2]&&r[3]&&!r[4]), label:"CRA ∩ NIST CSF", color:"#4aaa9a"},
+  cra_sdl: {items: REQ.filter(r=>r[2]&&!r[3]&&r[4]), label:"CRA ∩ MS SDL", color:"#9f8b4e"},
+  nist_sdl: {items: REQ.filter(r=>!r[2]&&r[3]&&r[4]), label:"NIST CSF ∩ MS SDL", color:"#a2c44d"},
+  all3: {items: REQ.filter(r=>r[2]&&r[3]&&r[4]), label:"All Three Frameworks", color:"var(--all3)"},
+};
+
+document.getElementById('view-venn').innerHTML = `<div class="venn-wrap">
+<svg class="venn-svg" viewBox="0 0 700 520" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="glow"><feGaussianBlur stdDeviation="3" result="g"/><feMerge><feMergeNode in="g"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  <!-- Circles -->
+  <circle cx="280" cy="220" r="175" fill="rgba(74,144,217,0.18)" stroke="#4A90D9" stroke-width="2"/>
+  <circle cx="420" cy="220" r="175" fill="rgba(80,200,120,0.18)" stroke="#50C878" stroke-width="2"/>
+  <circle cx="350" cy="350" r="175" fill="rgba(245,166,35,0.18)" stroke="#F5A623" stroke-width="2"/>
+
+  <!-- Clickable regions (invisible hit areas) -->
+  <!-- CRA only -->
+  <path class="region" data-r="cra_only" d="M280,220 m-140,0 a140,140 0 0,1 100,-120 a175,175 0 0,0 -55,115 a175,175 0 0,0 10,70 a175,175 0 0,0 -55,55 a140,140 0 0,1 0,-120z" fill="rgba(74,144,217,0.3)" filter="url(#glow)"/>
+  <circle class="region" data-r="cra_only" cx="195" cy="195" r="60" fill="transparent"/>
+
+  <!-- NIST only -->
+  <circle class="region" data-r="nist_only" cx="505" cy="195" r="60" fill="transparent"/>
+
+  <!-- SDL only -->
+  <circle class="region" data-r="sdl_only" cx="350" cy="450" r="55" fill="transparent"/>
+
+  <!-- CRA+NIST -->
+  <ellipse class="region" data-r="cra_nist" cx="350" cy="175" rx="45" ry="40" fill="transparent"/>
+
+  <!-- CRA+SDL -->
+  <ellipse class="region" data-r="cra_sdl" cx="290" cy="330" rx="40" ry="40" fill="transparent"/>
+
+  <!-- NIST+SDL -->
+  <ellipse class="region" data-r="nist_sdl" cx="410" cy="330" rx="40" ry="40" fill="transparent"/>
+
+  <!-- All 3 -->
+  <circle class="region" data-r="all3" cx="350" cy="265" r="50" fill="rgba(192,132,252,0.25)" filter="url(#glow)"/>
+
+  <!-- Labels -->
+  <text x="170" y="140" fill="#4A90D9" font-size="16" font-weight="700">EU CRA</text>
+  <text x="475" y="140" fill="#50C878" font-size="16" font-weight="700">NIST CSF</text>
+  <text x="310" y="495" fill="#F5A623" font-size="16" font-weight="700">MS SDL</text>
+
+  <!-- Counts -->
+  <text x="195" y="200" fill="#4A90D9" font-size="22" font-weight="700" text-anchor="middle">${vennRegions.cra_only.items.length}</text>
+  <text x="505" y="200" fill="#50C878" font-size="22" font-weight="700" text-anchor="middle">${vennRegions.nist_only.items.length}</text>
+  <text x="350" y="455" fill="#F5A623" font-size="22" font-weight="700" text-anchor="middle">${vennRegions.sdl_only.items.length}</text>
+  <text x="350" y="180" fill="#4aaa9a" font-size="18" font-weight="700" text-anchor="middle">${vennRegions.cra_nist.items.length}</text>
+  <text x="290" y="338" fill="#9f8b4e" font-size="18" font-weight="700" text-anchor="middle">${vennRegions.cra_sdl.items.length}</text>
+  <text x="410" y="338" fill="#a2c44d" font-size="18" font-weight="700" text-anchor="middle">${vennRegions.nist_sdl.items.length}</text>
+  <text x="350" y="272" fill="#c084fc" font-size="24" font-weight="700" text-anchor="middle">${vennRegions.all3.items.length}</text>
+</svg>
+<div id="venn-detail"><h3>Click a region to explore</h3><p style="color:var(--text2)">Click on any number in the Venn diagram to see which requirements fall in that overlap region.</p></div>
+</div>`;
+
+document.querySelectorAll('.region').forEach(el=>el.addEventListener('click',()=>{
+  const r = vennRegions[el.dataset.r];
+  const d = document.getElementById('venn-detail');
+  if(!r.items.length){d.innerHTML=`<h3>${r.label}</h3><p style="color:var(--text2)">No requirements in this region.</p>`;return;}
+  d.innerHTML=`<h3 style="color:${r.color}">${r.label} (${r.items.length})</h3><ul>${r.items.map(i=>`<li><strong>${i[1]}</strong> <span style="color:var(--text3);font-size:.8rem">${i[0]}</span><br><span style="font-size:.8rem;color:var(--text2)">${i[5]}</span></li>`).join('')}</ul>`;
+}));
+
+// ── MATRIX ──
+{
+  let html = `<div class="matrix-wrap"><table class="matrix"><thead><tr><th class="row-head">Requirement Category</th><th style="color:var(--cra)">EU CRA</th><th style="color:var(--nist)">NIST CSF 2.0</th><th style="color:var(--sdl)">MS SDL</th><th>Overlap</th></tr></thead><tbody>`;
+  CATEGORIES.forEach(cat=>{
+    const items = REQ.filter(r=>r[0]===cat);
+    const cra=items.filter(r=>r[2]).length, nist=items.filter(r=>r[3]).length, sdl=items.filter(r=>r[4]).length;
+    const tot=items.length;
+    const overlap = items.filter(r=>(r[2]+r[3]+r[4])>=2).length;
+    const pct = Math.round(overlap/tot*100);
+    const cls = pct>=75?'c3':pct>=40?'c2':pct>0?'c1':'c0';
+    html += `<tr>
+      <td class="row-head"><span class="cat-label" style="background:${catColors[cat]||'#666'}33;color:${catColors[cat]||'#999'}">${cat}</span></td>
+      <td class="cell ${cra===tot?'c3':cra>0?'c2':'c0'}">${cra}/${tot}</td>
+      <td class="cell ${nist===tot?'c3':nist>0?'c2':'c0'}">${nist}/${tot}</td>
+      <td class="cell ${sdl===tot?'c3':sdl>0?'c2':'c0'}">${sdl}/${tot}</td>
+      <td class="cell ${cls}">${pct}%</td>
+    </tr>`;
+  });
+  html += `</tbody></table></div>`;
+  document.getElementById('view-matrix').innerHTML = html;
+}
+
+// ── TABLE ──
+{
+  let html = `<div class="filters">
+    <label>Category:</label><select id="fCat"><option value="">All</option>${CATEGORIES.map(c=>`<option>${c}</option>`).join('')}</select>
+    <label>Show:</label><select id="fOverlap"><option value="">All</option><option value="3">All 3</option><option value="2">≥2</option><option value="1">Single only</option></select>
+    <label>Search:</label><input id="fSearch" placeholder="keyword…" />
+  </div>`;
+  html += `<div class="detail-table-wrap"><table class="detail-table"><thead><tr><th>Category</th><th>Requirement</th><th style="color:var(--cra)">CRA</th><th style="color:var(--nist)">NIST</th><th style="color:var(--sdl)">SDL</th><th>Notes</th></tr></thead><tbody id="tBody">`;
+  REQ.forEach((r,i)=>{
+    html += `<tr data-i="${i}"><td><span class="cat-label" style="background:${catColors[r[0]]||'#666'}33;color:${catColors[r[0]]||'#999'}">${r[0]}</span></td><td>${r[1]}</td><td>${r[2]?'<span class="check">✔</span>':'<span class="cross">—</span>'}</td><td>${r[3]?'<span class="check">✔</span>':'<span class="cross">—</span>'}</td><td>${r[4]?'<span class="check">✔</span>':'<span class="cross">—</span>'}</td><td style="font-size:.8rem;color:var(--text2)">${r[5]}</td></tr>`;
+  });
+  html += `</tbody></table></div>`;
+  document.getElementById('view-table').innerHTML = html;
+
+  const filter = ()=>{
+    const cat=document.getElementById('fCat').value, ov=document.getElementById('fOverlap').value, q=document.getElementById('fSearch').value.toLowerCase();
+    document.querySelectorAll('#tBody tr').forEach(tr=>{
+      const r=REQ[tr.dataset.i], sum=r[2]+r[3]+r[4];
+      let show=true;
+      if(cat&&r[0]!==cat)show=false;
+      if(ov==='3'&&sum!==3)show=false;
+      if(ov==='2'&&sum<2)show=false;
+      if(ov==='1'&&sum!==1)show=false;
+      if(q&&!r[1].toLowerCase().includes(q)&&!r[5].toLowerCase().includes(q))show=false;
+      tr.style.display=show?'':'none';
+    });
+  };
+  document.getElementById('fCat').addEventListener('change',filter);
+  document.getElementById('fOverlap').addEventListener('change',filter);
+  document.getElementById('fSearch').addEventListener('input',filter);
+}
+</script>
+</body>
+</html>

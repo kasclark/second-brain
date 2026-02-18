@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⛳ Golf Weekend Weather</title>
+<meta http-equiv="refresh" content="1800">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f1923; color: #e0e0e0; padding: 20px; }
+  h1 { text-align: center; color: #4CAF50; margin-bottom: 8px; font-size: 2em; }
+  .subtitle { text-align: center; color: #888; margin-bottom: 24px; font-size: 0.95em; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 20px; max-width: 1200px; margin: 0 auto; }
+  .card { background: #1a2633; border-radius: 12px; padding: 20px; border: 1px solid #2a3a4a; }
+  .card h2 { color: #4CAF50; font-size: 1.2em; margin-bottom: 4px; }
+  .card .location { color: #888; font-size: 0.85em; margin-bottom: 14px; }
+  .day { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #2a3a4a; }
+  .day:last-child { border-bottom: none; }
+  .day-name { font-weight: 600; min-width: 80px; }
+  .day-name .date { font-size: 0.75em; color: #888; font-weight: normal; }
+  .conditions { text-align: center; flex: 1; }
+  .conditions .desc { font-size: 0.85em; }
+  .conditions .icon { font-size: 1.8em; }
+  .stats { text-align: right; min-width: 100px; }
+  .stats .temp { font-size: 1.3em; font-weight: 700; }
+  .stats .detail { font-size: 0.8em; color: #888; }
+  .rain-0 { color: #4CAF50; }
+  .rain-low { color: #FFC107; }
+  .rain-high { color: #F44336; }
+  .best-pick { border-color: #4CAF50; box-shadow: 0 0 15px rgba(76,175,80,0.15); }
+  .best-badge { background: #4CAF50; color: #000; padding: 2px 8px; border-radius: 4px; font-size: 0.75em; font-weight: 700; margin-left: 8px; }
+  .legend { text-align: center; margin-top: 20px; color: #666; font-size: 0.8em; }
+  .today-label { color: #4CAF50; font-size: 0.7em; }
+</style>
+</head>
+<body>
+<h1>⛳ Golf Weekend Weather</h1>
+<div class="subtitle">Kassidy's Favorite Courses — Weekend of Feb 14-15, 2026</div>
+<div class="grid" id="cards"></div>
+<div class="legend">Auto-refreshes every 30 min · Weather from wttr.in · 🟢 = Best pick for the day</div>
+
+<script>
+const courses = [
+  {
+    name: "Lewis River Golf",
+    location: "Woodland, WA",
+    query: "Woodland,WA",
+    url: "https://www.lewisrivergolf.com"
+  },
+  {
+    name: "Elk Ridge Golf",
+    location: "Carson, WA (Gorge)",
+    query: "Carson,WA",
+    url: "https://elkridgegolfcourse.com"
+  },
+  {
+    name: "Three Rivers Golf",
+    location: "Kelso, WA",
+    query: "Kelso,WA",
+    url: "https://www.3riversgolf.com"
+  },
+  {
+    name: "Stone Creek Golf Club",
+    location: "Oregon City, OR",
+    query: "Oregon+City,OR",
+    url: "https://www.stonecreekgolfclub.net"
+  },
+  {
+    name: "Heron Lakes Golf",
+    location: "Portland, OR",
+    query: "Portland,OR",
+    url: "https://portlandparksgolf.com"
+  },
+  {
+    name: "Indian Creek Golf",
+    location: "Hood River, OR",
+    query: "Hood+River,OR",
+    url: "https://indiancreekgolf.com"
+  }
+];
+
+function getIcon(desc) {
+  const d = desc.toLowerCase();
+  if (d.includes('sunny') || d.includes('clear')) return '☀️';
+  if (d.includes('partly')) return '⛅';
+  if (d.includes('cloud') || d.includes('overcast')) return '☁️';
+  if (d.includes('rain') || d.includes('drizzle')) return '🌧️';
+  if (d.includes('snow')) return '❄️';
+  if (d.includes('fog') || d.includes('mist')) return '🌫️';
+  if (d.includes('thunder')) return '⛈️';
+  return '🌤️';
+}
+
+function rainClass(pct) {
+  if (pct == 0) return 'rain-0';
+  if (pct <= 30) return 'rain-low';
+  return 'rain-high';
+}
+
+function dayName(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00');
+  const days = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return { day: days[d.getDay()], date: `${months[d.getMonth()]} ${d.getDate()}` };
+}
+
+async function loadWeather() {
+  const container = document.getElementById('cards');
+  container.innerHTML = '';
+  
+  const allData = [];
+  
+  for (const course of courses) {
+    try {
+      const resp = await fetch(`https://wttr.in/${course.query}?format=j1`);
+      const data = await resp.json();
+      const days = data.weather || [];
+      
+      const courseData = { course, days: [] };
+      
+      let html = `<div class="card" id="card-${course.query}">`;
+      html += `<h2><a href="${course.url}" target="_blank" style="color:#4CAF50;text-decoration:none">${course.name}</a></h2>`;
+      html += `<div class="location">📍 ${course.location}</div>`;
+      
+      for (let i = 0; i < days.length; i++) {
+        const day = days[i];
+        const { day: dName, date: dDate } = dayName(day.date);
+        
+        // Get golf hours (9am, noon, 3pm)
+        let maxTemp = 0, maxRain = 0, maxWind = 0, desc = '';
+        for (const h of (day.hourly || [])) {
+          const t = parseInt(h.time);
+          if (t >= 900 && t <= 1500) {
+            maxTemp = Math.max(maxTemp, parseInt(h.tempF));
+            maxRain = Math.max(maxRain, parseInt(h.chanceofrain));
+            maxWind = Math.max(maxWind, parseInt(h.windspeedMiles));
+            if (t === 1200) desc = h.weatherDesc[0].value;
+          }
+        }
+        if (!desc && day.hourly && day.hourly.length > 4) desc = day.hourly[4].weatherDesc[0].value;
+        
+        courseData.days.push({ date: day.date, temp: maxTemp, rain: maxRain, wind: maxWind, desc });
+        
+        const isToday = day.date === new Date().toISOString().split('T')[0];
+        html += `<div class="day">`;
+        html += `<div class="day-name">${dName}${isToday ? ' <span class="today-label">TODAY</span>' : ''}<br><span class="date">${dDate}</span></div>`;
+        html += `<div class="conditions"><div class="icon">${getIcon(desc)}</div><div class="desc">${desc}</div></div>`;
+        html += `<div class="stats"><div class="temp">${maxTemp}°F</div>`;
+        html += `<div class="detail ${rainClass(maxRain)}">💧 ${maxRain}%</div>`;
+        html += `<div class="detail">💨 ${maxWind}mph</div></div>`;
+        html += `</div>`;
+      }
+      
+      html += `</div>`;
+      container.innerHTML += html;
+      allData.push(courseData);
+    } catch(e) {
+      container.innerHTML += `<div class="card"><h2>${course.name}</h2><p style="color:#F44336">Failed to load weather</p></div>`;
+    }
+  }
+  
+  // Highlight best pick for Saturday (index 1)
+  if (allData.length > 0 && allData[0].days.length > 1) {
+    let bestScore = -999;
+    let bestQuery = '';
+    for (const cd of allData) {
+      if (cd.days.length > 1) {
+        const sat = cd.days[1]; // tomorrow = Saturday
+        const score = sat.temp - sat.rain - (sat.wind * 2);
+        if (score > bestScore) {
+          bestScore = score;
+          bestQuery = cd.course.query;
+        }
+      }
+    }
+    if (bestQuery) {
+      const el = document.getElementById('card-' + bestQuery);
+      if (el) {
+        el.classList.add('best-pick');
+        el.querySelector('h2').innerHTML += '<span class="best-badge">🏆 BEST PICK SAT</span>';
+      }
+    }
+  }
+}
+
+loadWeather();
+</script>
+</body>
+</html>
